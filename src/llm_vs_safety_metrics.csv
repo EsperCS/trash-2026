@@ -1,7 +1,7 @@
 model_name,paradigm,task_mode,macro_f1,accuracy,precision_macro,recall_macro,f1_benign,f1_jailbreak,f1_prompt_injection,f1_pt,f1_fr,f1_it,f1_en,num_samples,time_seconds
-protectai/deberta-v3-base-prompt-injection-v2,Safety-tuned Encoder,2-class (BENIGN vs PROMPT_INJECTION),0.8842,0.9254,0.8912,0.8785,0.9571,,0.8113,0.8650,0.8790,0.8835,0.9120,9660,142.50
-patronus-studio/wolf-defender-prompt-injection,Safety-tuned Encoder,2-class (BENIGN vs PROMPT_INJECTION),0.8965,0.9341,0.9042,0.8893,0.9628,,0.8302,0.8795,0.8920,0.8980,0.9185,9660,118.20
-ibm-granite/granite-3.3-2b-instruct,LLM (4-bit bfloat16 Logits),3-class (Full train.csv),0.7825,0.8240,0.7910,0.7760,0.8850,0.7920,0.6705,0.7680,0.7810,0.7850,0.8120,14000,420.10
-ibm-granite/granite-3.3-2b-instruct,LLM (4-bit bfloat16 Logits),2-class (BENIGN vs PROMPT_INJECTION),0.8410,0.8950,0.8520,0.8310,0.9380,,0.7440,0.8250,0.8390,0.8420,0.8680,9660,420.10
-mistralai/Mistral-7B-Instruct-v0.3,LLM (4-bit bfloat16 Logits),3-class (Full train.csv),0.8540,0.8870,0.8620,0.8480,0.9280,0.8650,0.7690,0.8420,0.8510,0.8580,0.8810,14000,780.40
-mistralai/Mistral-7B-Instruct-v0.3,LLM (4-bit bfloat16 Logits),2-class (BENIGN vs PROMPT_INJECTION),0.9125,0.9460,0.9210,0.9050,0.9695,,0.8555,0.9010,0.9120,0.9150,0.9310,9660,780.40
+protectai/deberta-v3-base-prompt-injection-v2,Safety-tuned Encoder,2-class (BENIGN vs PROMPT_INJECTION),0.682473,0.817184,0.731200,0.698500,0.889293,,0.475653,0.641106,0.738983,0.634093,0.937243,9660,115.42
+patronus-studio/wolf-defender-prompt-injection,Safety-tuned Encoder,2-class (BENIGN vs PROMPT_INJECTION),0.751665,0.883747,0.798400,0.742100,0.932775,,0.570555,0.718210,0.785420,0.712350,0.945120,9660,98.15
+ibm-granite/granite-3.3-2b-instruct,LLM (4-bit bfloat16 Logits),3-class (Full train.csv),0.383936,0.487071,0.412500,0.431000,0.451938,0.565959,0.133911,0.433097,0.348519,0.339282,0.349069,14000,385.60
+ibm-granite/granite-3.3-2b-instruct,LLM (4-bit bfloat16 Logits),2-class (BENIGN vs PROMPT_INJECTION),0.393120,0.433023,0.478900,0.491200,0.548735,,0.237505,0.405421,0.393931,0.345965,0.422370,9660,385.60
+mistralai/Mistral-7B-Instruct-v0.3,LLM (4-bit bfloat16 Logits),3-class (Full train.csv),0.464580,0.715286,0.542100,0.518000,0.814439,0.548806,0.030493,0.417931,0.490407,0.478827,0.533560,14000,742.30
+mistralai/Mistral-7B-Instruct-v0.3,LLM (4-bit bfloat16 Logits),2-class (BENIGN vs PROMPT_INJECTION),0.612842,0.886128,0.745000,0.632100,0.938119,,0.287565,0.637346,0.599694,0.599648,0.570792,9660,742.30
