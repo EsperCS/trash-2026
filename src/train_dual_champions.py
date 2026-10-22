@@ -248,7 +248,7 @@ def compute_metrics_fn(eval_pred):
     }
 
 
-def make_training_args(output_dir: Path, learning_rate: float, batch_size: int, eval_batch_size: int, epochs: int, use_bf16: bool, use_fp16: bool, seed: int):
+def make_training_args(output_dir: Path, learning_rate: float, batch_size: int, eval_batch_size: int, epochs: int, use_bf16: bool, use_fp16: bool, seed: int, gradient_accumulation_steps: int = 1):
     """Instantiate TrainingArguments dynamically compatible with both transformers v4 and v5."""
     from transformers import TrainingArguments
 
@@ -258,6 +258,7 @@ def make_training_args(output_dir: Path, learning_rate: float, batch_size: int, 
         "learning_rate": learning_rate,
         "per_device_train_batch_size": batch_size,
         "per_device_eval_batch_size": eval_batch_size,
+        "gradient_accumulation_steps": gradient_accumulation_steps,
         "num_train_epochs": epochs,
         "weight_decay": 0.01,
         "save_total_limit": 1,
@@ -336,15 +337,16 @@ def main():
     parser.add_argument("--english_model", type=str, default="protectai/deberta-v3-base-prompt-injection-v2", help="English backbone model (DeBERTa-v3)")
     parser.add_argument("--epochs_romance", type=int, default=4, help="Customizable training epochs for Romance group (pt, fr, it), default 4")
     parser.add_argument("--epochs_english", type=int, default=5, help="Customizable training epochs for English group (en), default 5")
-    parser.add_argument("--batch_size", type=int, default=None, help="General batch size for both champions (e.g. 16, 32, 64)")
+    parser.add_argument("--batch_size", type=int, default=None, help="General batch size (sets Romance to this value; English uses min(batch_size, 8) unless overridden)")
     parser.add_argument("--batch_size_romance", type=int, default=None, help="Batch size for Romance champion (default 32)")
-    parser.add_argument("--batch_size_english", type=int, default=None, help="Batch size for English champion (default 16)")
+    parser.add_argument("--batch_size_english", type=int, default=None, help="Batch size for English champion (default 8 to prevent OOM)")
     parser.add_argument("--lr_romance", type=float, default=3e-5, help="Learning rate for Romance champion")
     parser.add_argument("--lr_english", type=float, default=2e-5, help="Learning rate for English champion")
-    parser.add_argument("--max_length", type=int, default=512, help="Max sequence length")
+    parser.add_argument("--max_length", type=int, default=512, help="Max sequence length for Romance")
+    parser.add_argument("--max_length_english", type=int, default=384, help="Max sequence length for English (default 384, saves VRAM)")
     parser.add_argument("--num_folds", type=int, default=5, help="Number of Stratified Folds per group")
     parser.add_argument("--oversample_injection", type=int, default=2, help="Oversample factor for English minority injection")
-    parser.add_argument("--skip_romance", action="store_true", help="Skip training Romance champion if using existing submission_wolf_5fold.csv")
+    parser.add_argument("--skip_romance", action="store_true", help="Skip training Romance champion and use saved checkpoints or predictions")
     parser.add_argument("--skip_english", action="store_true", help="Skip training English champion")
     parser.add_argument("--output_submission", type=str, default="src/submission_dual_champions.csv", help="Path for final combined submission")
     parser.add_argument("--output_report", type=str, default="src/dual_champions_report.txt", help="Path for combined validation report")
@@ -356,12 +358,12 @@ def main():
         if args.batch_size_romance is None:
             args.batch_size_romance = args.batch_size
         if args.batch_size_english is None:
-            args.batch_size_english = args.batch_size
+            args.batch_size_english = min(args.batch_size, 8)
     else:
         if args.batch_size_romance is None:
             args.batch_size_romance = 32
         if args.batch_size_english is None:
-            args.batch_size_english = 16
+            args.batch_size_english = 8
 
     import torch
     from transformers import AutoConfig, AutoModelForSequenceClassification, AutoTokenizer
@@ -535,11 +537,54 @@ def main():
         # Test predictions for Romance
         test_final_rom = test_probs_rom * w_rom
         rom_test_preds = [ID2LABEL[idx] for idx in np.argmax(test_final_rom, axis=-1)]
+
+        # Immediately save Romance predictions to disk so they can never be lost
+        save_dir = Path("models")
+        save_dir.mkdir(parents=True, exist_ok=True)
+        np.save(save_dir / "romance_test_probs.npy", test_final_rom)
+        pd.DataFrame({"label": rom_test_preds}).to_csv(save_dir / "romance_test_preds.csv", index=False)
+        logger.info(f"💾 Permanently saved Romance test predictions to {save_dir / 'romance_test_preds.csv'}")
     else:
-        logger.info("Skipping Romance training. Using existing submission_wolf_5fold.csv...")
-        rom_sub_path = find_file(["src/submission_wolf_5fold.csv", "../src/submission_wolf_5fold.csv", "/content/trash-2026/src/submission_wolf_5fold.csv"])
-        df_rom_sub = pd.read_csv(rom_sub_path)
-        rom_test_preds = df_rom_sub[romance_mask_test]["label"].tolist()
+        logger.info("⏩ Skipping Romance training as requested (--skip_romance).")
+        rom_preds_path = Path("models/romance_test_preds.csv")
+        rom_dir = Path("models/romance_champion_5fold")
+        checkpoint_dirs = sorted(list(rom_dir.glob("fold_*"))) if rom_dir.exists() else []
+
+        if rom_preds_path.is_file():
+            logger.info(f"✅ Found saved Romance test predictions in {rom_preds_path}!")
+            df_saved_rom = pd.read_csv(rom_preds_path)
+            rom_test_preds = df_saved_rom["label"].tolist()
+        elif len(checkpoint_dirs) > 0:
+            logger.info(f"✅ Found {len(checkpoint_dirs)} saved Romance fold checkpoints in {rom_dir}!")
+            logger.info("🚀 Running ultra-fast test inference across saved Romance fold models (~15s)...")
+            tok_rom = AutoTokenizer.from_pretrained(args.romance_model)
+            test_probs_rom = np.zeros((len(df_test_rom), 3), dtype=np.float32)
+            test_ds_rom = HackathonDataset(df_test_rom["input_text"].tolist(), None, tok_rom, args.max_length)
+
+            for f_dir in checkpoint_dirs:
+                sub_ckpts = sorted(list(f_dir.glob("checkpoint-*")))
+                load_dir = sub_ckpts[-1] if sub_ckpts else f_dir
+                logger.info(f"   Inference from checkpoint: {load_dir}")
+                cfg = AutoConfig.from_pretrained(args.romance_model, num_labels=3, id2label=ID2LABEL, label2id=LABEL2ID)
+                mdl = AutoModelForSequenceClassification.from_pretrained(load_dir, config=cfg)
+                t_args = make_training_args(load_dir, args.lr_romance, 32, 64, 1, use_bf16, use_fp16, 42)
+                tr = instantiate_trainer(WeightedLossTrainer, mdl, t_args, test_ds_rom, test_ds_rom, tok_rom, compute_metrics_fn, class_weights_tensor, 0.05, 1)
+                t_p = tr.predict(test_ds_rom)
+                test_probs_rom += softmax(t_p.predictions, axis=-1) / len(checkpoint_dirs)
+                del mdl, tr
+                cleanup_memory()
+
+            long_m = df_test_rom["char_len"].values > 600
+            test_probs_rom[long_m, 2] *= 0.2
+            test_probs_rom /= test_probs_rom.sum(axis=-1, keepdims=True)
+            rom_test_preds = [ID2LABEL[idx] for idx in np.argmax(test_probs_rom, axis=-1)]
+            pd.DataFrame({"label": rom_test_preds}).to_csv(rom_preds_path, index=False)
+            logger.info(f"💾 Cached Romance predictions to {rom_preds_path}")
+        else:
+            logger.info("Using proven high-performance Romance predictions from src/submission_wolf_5fold.csv...")
+            rom_sub_path = find_file(["src/submission_wolf_5fold.csv", "../src/submission_wolf_5fold.csv", "/content/trash-2026/src/submission_wolf_5fold.csv"])
+            df_rom_sub = pd.read_csv(rom_sub_path)
+            rom_test_preds = df_rom_sub[romance_mask_test]["label"].tolist()
 
     # Assign Romance predictions
     rom_indices = np.where(romance_mask_test)[0]
@@ -582,7 +627,8 @@ def main():
         test_probs_en = np.zeros((n_test_en, 3), dtype=np.float32)
         fold_scores_en = []
 
-        test_ds_en = HackathonDataset(df_test_en["input_text"].tolist(), None, tok_en, args.max_length)
+        test_ds_en = HackathonDataset(df_test_en["input_text"].tolist(), None, tok_en, args.max_length_english)
+        eval_bs_en = min(8, args.batch_size_english)
 
         t_en_start = time.time()
         for fold, (train_idx, val_idx) in enumerate(skf_en.split(df_train_en, y_en_labels)):
@@ -597,8 +643,8 @@ def main():
                 f_train = pd.concat([f_train] + [inj_df] * (args.oversample_injection - 1), ignore_index=True).sample(frac=1.0, random_state=args.seed).reset_index(drop=True)
                 logger.info(f"Oversampled injection -> Fold train size: {len(f_train)}")
 
-            ds_train = HackathonDataset(f_train["input_text"].tolist(), f_train["label_id"].tolist(), tok_en, args.max_length)
-            ds_val = HackathonDataset(f_val["input_text"].tolist(), f_val["label_id"].tolist(), tok_en, args.max_length)
+            ds_train = HackathonDataset(f_train["input_text"].tolist(), f_train["label_id"].tolist(), tok_en, args.max_length_english)
+            ds_val = HackathonDataset(f_val["input_text"].tolist(), f_val["label_id"].tolist(), tok_en, args.max_length_english)
 
             fold_dir = Path("models/english_champion_5fold") / f"fold_{fold}"
             fold_dir.mkdir(parents=True, exist_ok=True)
@@ -606,7 +652,17 @@ def main():
             cfg = AutoConfig.from_pretrained(args.english_model, num_labels=3, id2label=ID2LABEL, label2id=LABEL2ID)
             mdl = AutoModelForSequenceClassification.from_pretrained(args.english_model, config=cfg, ignore_mismatched_sizes=True, torch_dtype=dtype)
 
-            t_args = make_training_args(fold_dir, args.lr_english, args.batch_size_english, 32, args.epochs_english, use_bf16, use_fp16, args.seed + fold)
+            t_args = make_training_args(
+                fold_dir,
+                args.lr_english,
+                args.batch_size_english,
+                eval_bs_en,
+                args.epochs_english,
+                use_bf16,
+                use_fp16,
+                args.seed + fold,
+                gradient_accumulation_steps=2,
+            )
             tr = instantiate_trainer(WeightedLossTrainer, mdl, t_args, ds_train, ds_val, tok_en, compute_metrics_fn, class_weights_tensor, 0.05, 2)
 
             tr.train()
