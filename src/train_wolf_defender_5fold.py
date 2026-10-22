@@ -456,27 +456,44 @@ def main():
             torch_dtype=dtype,
         )
 
-        training_args = TrainingArguments(
-            output_dir=str(fold_output_dir),
-            learning_rate=args.learning_rate,
-            per_device_train_batch_size=args.batch_size,
-            per_device_eval_batch_size=args.eval_batch_size,
-            num_train_epochs=args.epochs,
-            weight_decay=0.01,
-            warmup_ratio=0.1,
-            eval_strategy="epoch",
-            save_strategy="epoch",
-            save_total_limit=1,
-            load_best_model_at_end=True,
-            metric_for_best_model="macro_f1",
-            greater_is_better=True,
-            logging_steps=50,
-            report_to="none",
-            bf16=use_bf16,
-            fp16=use_fp16,
-            dataloader_num_workers=2 if os.name != "nt" else 0,
-            seed=args.seed + fold,
-        )
+        import inspect
+        sig_params = inspect.signature(TrainingArguments.__init__).parameters
+
+        args_dict = {
+            "output_dir": str(fold_output_dir),
+            "learning_rate": args.learning_rate,
+            "per_device_train_batch_size": args.batch_size,
+            "per_device_eval_batch_size": args.eval_batch_size,
+            "num_train_epochs": args.epochs,
+            "weight_decay": 0.01,
+            "save_total_limit": 1,
+            "load_best_model_at_end": True,
+            "metric_for_best_model": "macro_f1",
+            "greater_is_better": True,
+            "logging_steps": 50,
+            "report_to": "none",
+            "bf16": use_bf16,
+            "fp16": use_fp16,
+            "dataloader_num_workers": 2 if os.name != "nt" else 0,
+            "seed": args.seed + fold,
+        }
+
+        # Dynamic compatibility across transformers v4 and v5
+        if "warmup_ratio" in sig_params:
+            args_dict["warmup_ratio"] = 0.1
+        elif "warmup_steps" in sig_params:
+            args_dict["warmup_steps"] = 0.1
+
+        if "eval_strategy" in sig_params:
+            args_dict["eval_strategy"] = "epoch"
+        elif "evaluation_strategy" in sig_params:
+            args_dict["evaluation_strategy"] = "epoch"
+
+        if "save_strategy" in sig_params:
+            args_dict["save_strategy"] = "epoch"
+
+        filtered_args = {k: v for k, v in args_dict.items() if k in sig_params}
+        training_args = TrainingArguments(**filtered_args)
 
         trainer = WeightedLossTrainer(
             model=model,
