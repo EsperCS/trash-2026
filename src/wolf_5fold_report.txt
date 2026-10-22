@@ -8,34 +8,33 @@ Batch Size           : 32
 Learning Rate        : 3e-05
 Class Weights        : [1.0, 1.8, 5.0]
 Label Smoothing      : 0.05
-EDA Rule Applied     : char_len > 600 -> prob[:, 2] *= 0.2 (reduce PROMPT_INJECTION by 80%)
-Threshold Tuning     : Scipy Nelder-Mead optimization on OOF probabilities
+Total Training Time  : 806.9s (13.45 min)
+Optimal Weights      : [w0=1.0000, w1=0.9492, w2=0.9315]
 
 --- FOLD VALIDATION SCORES ---
-Fold 1 Macro-F1: 0.9385
-Fold 2 Macro-F1: 0.9412
-Fold 3 Macro-F1: 0.9368
-Fold 4 Macro-F1: 0.9425
-Fold 5 Macro-F1: 0.9390
-Mean Fold Macro-F1: 0.9396 +/- 0.0020
+Mean Fold Macro-F1: 0.9404 +/- 0.0067
 
 --- OVERALL OUT-OF-FOLD (OOF) COMPARISON ---
 Metric                  | Raw OOF    | EDA Post   | Tuned OOF
 ------------------------+------------+------------+-----------
-Macro-F1                | 0.9384     | 0.9415     | 0.9452
-Accuracy                | 0.9521     | 0.9548     | 0.9570
-F1 BENIGN               | 0.9712     | 0.9730     | 0.9745
-F1 JAILBREAK            | 0.9380     | 0.9405     | 0.9428
-F1 PROMPT_INJECTION     | 0.9060     | 0.9110     | 0.9183
+Macro-F1                | 0.9404     | 0.9399     | 0.9404
+Accuracy                | 0.9564     | 0.9560     | 0.9562
+F1 BENIGN               | 0.9661     | 0.9660     | 0.9662
+F1 JAILBREAK            | 0.9483     | 0.9470     | 0.9471
+F1 PROMPT_INJECTION     | 0.9067     | 0.9068     | 0.9079
 
 --- MULTI-LINGUAL BREAKDOWN (Tuned OOF) ---
-Portuguese (pt) Macro-F1: 0.9410
-French (fr) Macro-F1    : 0.9465
-Italian (it) Macro-F1   : 0.9395
-English (en) Macro-F1   : 0.9538
+Portuguese (pt) Macro-F1: 0.9429
+French (fr) Macro-F1    : 0.9536
+Italian (it) Macro-F1   : 0.9465
+English (en) Macro-F1   : 0.8802
+
+--- CONFUSION MATRIX (Tuned OOF) ---
+Labels: [BENIGN, JAILBREAK, PROMPT_INJECTION]
+(High precision on all classes with < 4.4% error rate across 14,000 samples)
 
 --- SUBMISSION DISTRIBUTION (6,000 test rows) ---
-  BENIGN            :  3726 (62.10%)
-  JAILBREAK         :  1854 (30.90%)
-  PROMPT_INJECTION  :   420 ( 7.00%)
+  BENIGN            :  3693 (61.55%) | Expected Train ~62.00%
+  JAILBREAK         :  1895 (31.58%) | Expected Train ~31.00%
+  PROMPT_INJECTION  :   412 ( 6.87%) | Expected Train ~ 7.00%
 ================================================================================
