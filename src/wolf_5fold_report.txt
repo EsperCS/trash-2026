@@ -1,0 +1,41 @@
+================================================================================
+🐺 RMIT HACKATHON 2026: 5-FOLD WOLF-DEFENDER SOTA REPORT
+================================================================================
+Model Backbone       : patronus-studio/wolf-defender-prompt-injection (ModernBERT)
+Num Folds            : 5
+Epochs per Fold      : 3
+Batch Size           : 32
+Learning Rate        : 3e-05
+Class Weights        : [1.0, 1.8, 5.0]
+Label Smoothing      : 0.05
+EDA Rule Applied     : char_len > 600 -> prob[:, 2] *= 0.2 (reduce PROMPT_INJECTION by 80%)
+Threshold Tuning     : Scipy Nelder-Mead optimization on OOF probabilities
+
+--- FOLD VALIDATION SCORES ---
+Fold 1 Macro-F1: 0.9385
+Fold 2 Macro-F1: 0.9412
+Fold 3 Macro-F1: 0.9368
+Fold 4 Macro-F1: 0.9425
+Fold 5 Macro-F1: 0.9390
+Mean Fold Macro-F1: 0.9396 +/- 0.0020
+
+--- OVERALL OUT-OF-FOLD (OOF) COMPARISON ---
+Metric                  | Raw OOF    | EDA Post   | Tuned OOF
+------------------------+------------+------------+-----------
+Macro-F1                | 0.9384     | 0.9415     | 0.9452
+Accuracy                | 0.9521     | 0.9548     | 0.9570
+F1 BENIGN               | 0.9712     | 0.9730     | 0.9745
+F1 JAILBREAK            | 0.9380     | 0.9405     | 0.9428
+F1 PROMPT_INJECTION     | 0.9060     | 0.9110     | 0.9183
+
+--- MULTI-LINGUAL BREAKDOWN (Tuned OOF) ---
+Portuguese (pt) Macro-F1: 0.9410
+French (fr) Macro-F1    : 0.9465
+Italian (it) Macro-F1   : 0.9395
+English (en) Macro-F1   : 0.9538
+
+--- SUBMISSION DISTRIBUTION (6,000 test rows) ---
+  BENIGN            :  3726 (62.10%)
+  JAILBREAK         :  1854 (30.90%)
+  PROMPT_INJECTION  :   420 ( 7.00%)
+================================================================================
