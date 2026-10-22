@@ -495,17 +495,39 @@ def main():
         filtered_args = {k: v for k, v in args_dict.items() if k in sig_params}
         training_args = TrainingArguments(**filtered_args)
 
-        trainer = WeightedLossTrainer(
-            model=model,
-            args=training_args,
-            train_dataset=train_ds,
-            eval_dataset=val_ds,
-            tokenizer=tokenizer,
-            compute_metrics=compute_metrics_fn,
-            class_weights=class_weights_tensor,
-            label_smoothing=0.05,
-            callbacks=[EarlyStoppingCallback(early_stopping_patience=2)],
-        )
+        trainer_kwargs = {
+            "model": model,
+            "args": training_args,
+            "train_dataset": train_ds,
+            "eval_dataset": val_ds,
+            "compute_metrics": compute_metrics_fn,
+            "class_weights": class_weights_tensor,
+            "label_smoothing": 0.05,
+            "callbacks": [EarlyStoppingCallback(early_stopping_patience=2)],
+        }
+
+        # Compatibility between transformers v4 (tokenizer) and v5+ (processing_class)
+        from transformers import Trainer
+        trainer_sig = inspect.signature(Trainer.__init__).parameters
+        if "processing_class" in trainer_sig:
+            trainer_kwargs["processing_class"] = tokenizer
+        else:
+            trainer_kwargs["tokenizer"] = tokenizer
+
+        try:
+            trainer = WeightedLossTrainer(**trainer_kwargs)
+        except TypeError as e:
+            err_msg = str(e)
+            if "tokenizer" in err_msg:
+                trainer_kwargs.pop("tokenizer", None)
+                trainer_kwargs["processing_class"] = tokenizer
+                trainer = WeightedLossTrainer(**trainer_kwargs)
+            elif "processing_class" in err_msg:
+                trainer_kwargs.pop("processing_class", None)
+                trainer_kwargs["tokenizer"] = tokenizer
+                trainer = WeightedLossTrainer(**trainer_kwargs)
+            else:
+                raise
 
         # Train Fold Model
         trainer.train()
