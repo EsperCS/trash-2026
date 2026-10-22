@@ -401,8 +401,9 @@ def main():
     final_test_labels = ["BENIGN"] * len(df_test)
     report_lines = [
         "=" * 85,
-        "⚔️ RMIT HACKATHON 2026: DUAL CHAMPIONS VALIDATION REPORT",
+        f"⚔️ RMIT HACKATHON 2026: DUAL CHAMPIONS {args.num_folds}-FOLD VALIDATION REPORT",
         "=" * 85,
+        f"Folds: {args.num_folds}",
         f"Epochs Romance Champion ({args.romance_model}): {args.epochs_romance}",
         f"Epochs English Champion ({args.english_model}): {args.epochs_english}",
         f"Class Weights: [1.0, 1.8, 5.0] | Label Smoothing: 0.05",
@@ -426,7 +427,7 @@ def main():
     rom_f1_it = 0.9465
 
     if not args.skip_romance:
-        logger.info(f"\n{'='*75}\n🌹 TRAINING 5-FOLD ROMANCE CHAMPION ({args.epochs_romance} EPOCHS)\n{'='*75}")
+        logger.info(f"\n{'='*75}\n🌹 TRAINING {args.num_folds}-FOLD ROMANCE CHAMPION ({args.epochs_romance} EPOCHS)\n{'='*75}")
         cleanup_memory()
 
         tok_rom = AutoTokenizer.from_pretrained(args.romance_model)
@@ -554,7 +555,7 @@ def main():
     en_oof_f1 = 0.8802
 
     if not args.skip_english:
-        logger.info(f"\n{'='*75}\n🏴󠁧󠁢󠁥󠁮󠁧󠁿 TRAINING 5-FOLD ENGLISH CHAMPION ({args.epochs_english} EPOCHS, DeBERTa-v3)\n{'='*75}")
+        logger.info(f"\n{'='*75}\n🏴󠁧󠁢󠁥󠁮󠁧󠁿 TRAINING {args.num_folds}-FOLD ENGLISH CHAMPION ({args.epochs_english} EPOCHS, DeBERTa-v3)\n{'='*75}")
         cleanup_memory()
 
         tok_en = AutoTokenizer.from_pretrained(args.english_model)
