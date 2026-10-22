@@ -1,0 +1,233 @@
+\documentclass[aspectratio=169]{beamer}
+\usetheme{Madrid}
+\usefonttheme{structurebold}
+\usefonttheme[onlymath]{serif}
+
+\definecolor{BKTemplate}{rgb}{0.11765, 0.30588, 0.47451}
+\usecolortheme[named=BKTemplate]{structure}
+\setbeamercolor{title}{fg=BKTemplate,bg=} 
+\setbeamertemplate{caption}[numbered]
+\hfuzz=100pt
+\vfuzz=100pt
+\hbadness=10000
+\vbadness=10000
+\setbeamertemplate{headline}{}
+\setbeamertemplate{footline}[frame number]
+
+\usepackage[utf8]{inputenc}
+\usepackage[T5]{fontenc}    % Vietnamese-compatible font encoding
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+% \usepackage{microtype}      % microtypography
+\usepackage{mathtools}
+\usepackage{multicol}
+\usepackage{comment}
+\usepackage{forest}
+\usepackage[linesnumbered, ruled]{algorithm2e}
+\usepackage{algorithmic}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{graphicx}
+\usepackage{diagbox}
+\usepackage{tikz}
+\usepackage{subcaption}
+\usepackage{amsmath}
+
+\renewcommand{\footnotesize}{\tiny}
+\newcommand{\mathbi}[1]{\boldsymbol{#1}}
+\newtheorem{proposition}{Proposition}
+
+%------------------------------------------------------------
+\title[Trustworthy AI: Unified Calibration Framework]
+{\texorpdfstring{\vspace*{1cm}\\\textbf{UNIFIED CALIBRATION FRAMEWORK}\\\textbf{for Trustworthy AI}}{Unified Calibration Framework for Trustworthy AI}}
+
+\subtitle{Literature Review \& Phase-I Plan}
+
+\author[]
+{\texorpdfstring{PI: NCS. ThS. Dung Cam-Quang\\
+Team: Hac Minh-Quan, Huynh Hoang-Anh, Tran Tien-Dat\\
+Advisor: Dr. Ha Xuan-Son}{PI: NCS. ThS. Dung Cam-Quang; Team: Hac Minh-Quan, Huynh Hoang-Anh, Tran Tien-Dat; Advisor: Dr. Ha Xuan-Son}}
+
+\institute[HCMUT \& Viettel]
+{
+  Faculty of Computer Science \& Engineering\\
+  Ho Chi Minh City University of Technology (HCMUT) --- VNU-HCM\\
+  In collaboration with Viettel
+}
+
+\date[June 2026] 
+{June 2026}
+
+%------------------------------------------------------------
+
+
+\begin{document}
+
+\setbeamertemplate{background canvas}{
+	\includegraphics[width=\paperwidth,height=\paperheight]{images/FrontBackground.pdf}
+}
+\begin{frame}[plain]
+\titlepage
+\end{frame}
+
+\setbeamertemplate{background canvas}{
+	\includegraphics[width=\paperwidth,height=\paperheight]{images/Background.pdf}
+}
+
+\begin{frame}{Executive Summary}
+\textbf{Mục tiêu báo cáo:} tóm tắt phần đã literature review, phần đã chuẩn bị cho Phase 1, định hướng triển khai, và future plan.
+
+\vspace{0.25cm}
+\begin{itemize}
+\item \textbf{Literature review:} calibration cho Narrow AI, LLMs, và VLMs; tập trung vào đo lường sai lệch confidence--accuracy và cách hiệu chỉnh.
+\item \textbf{Chuẩn bị:} xác định metrics, baseline methods, datasets/benchmarks, pipeline thí nghiệm, và các module cần xây dựng.
+\item \textbf{Định hướng:} xây dựng Unified Calibration Framework (UCF) theo hướng modular, đo được, tái lập được, mở rộng được sang LLM/VLM.
+\item \textbf{Future plan:} giữ lộ trình Phase 2--3 cho LLM calibration, VLM calibration, distribution shift và ứng dụng Viettel.
+\end{itemize}
+\end{frame}
+
+\section{Literature Review}
+
+\begin{frame}{Literature Review 1: Narrow AI Calibration}
+\textbf{Vấn đề chính:} neural networks hiện đại thường đạt accuracy cao nhưng confidence không phản ánh đúng xác suất đúng.
+
+\vspace{0.2cm}
+\textbf{Nhóm phương pháp đã review:}
+\begin{itemize}
+\item \textbf{Post-hoc calibration:} Temperature Scaling, Isotonic Regression, Beta Calibration, Bayesian Binning.
+\item \textbf{Training-time calibration:} Label Smoothing, Confidence Penalty, MMCE, Focal Loss, Mixup, Deep Ensembles, MC Dropout.
+\item \textbf{Metrics:} ECE, Adaptive ECE, MCE, Brier Score, NLL, reliability diagram, selective-risk curve.
+\end{itemize}
+
+\vspace{0.2cm}
+\textbf{Kết luận review:} Temperature Scaling là baseline mạnh, đơn giản, ít ảnh hưởng accuracy; các phương pháp adaptive/ensemble hữu ích khi gặp distribution shift.
+\end{frame}
+
+\begin{frame}{Literature Review 2: LLM Calibration}
+\textbf{Vấn đề chính:} LLM có thể trả lời rất tự tin nhưng sai; RLHF và black-box API làm token probability không còn là tín hiệu calibration đáng tin tuyệt đối.
+
+\vspace{0.2cm}
+\textbf{Nhóm hướng tiếp cận đã review:}
+\begin{itemize}
+\item \textbf{Token/log-prob based:} dùng xác suất chuỗi sinh ra khi có logit hoặc log-prob access.
+\item \textbf{Verbalized confidence:} yêu cầu mô hình tự ước lượng độ tin cậy bằng prompt.
+\item \textbf{Self-consistency:} lấy nhiều mẫu trả lời, dùng mức đồng thuận làm confidence signal.
+\item \textbf{RAG grounding:} kiểm tra độ bám nguồn và chất lượng retrieval để giảm hallucination.
+\item \textbf{APRICOT-style:} embedding câu hỏi, clustering, tính accuracy theo cụm, huấn luyện auxiliary calibrator.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Literature Review 3: VLM Calibration}
+\textbf{Vấn đề chính:} VLM có hai nguồn bất định: tín hiệu thị giác và tín hiệu ngôn ngữ; câu trả lời mạch lạc có thể che giấu uncertainty từ ảnh.
+
+\vspace{0.2cm}
+\textbf{Nhóm hướng tiếp cận đã review:}
+\begin{itemize}
+\item \textbf{Distance-Aware Calibration:} dùng khoảng cách embedding text/visual để điều chỉnh confidence.
+\item \textbf{Cross-modal decomposition:} tách confidence thành thành phần vision và language.
+\item \textbf{Attention/grounding check:} dùng cross-attention hoặc grounding score để phát hiện câu trả lời không bám ảnh.
+\item \textbf{Perturbation-based uncertainty:} đo variance khi thay đổi ảnh, prompt, hoặc sampling strategy.
+\end{itemize}
+
+\vspace{0.2cm}
+\textbf{Kết luận review:} VLM cần calibration theo từng modality, không nên chỉ dùng softmax hoặc text confidence cuối cùng.
+\end{frame}
+
+\section{Preparation}
+
+\begin{frame}{Metrics, Baselines, Benchmarks}
+\textbf{Metrics library cần xây dựng:}
+\begin{itemize}
+\item ECE equal-width, Adaptive ECE/equal-mass, MCE, Brier Score, NLL.
+\item Reliability diagram trước/sau calibration và selective-risk curve.
+\end{itemize}
+
+\vspace{0.2cm}
+\textbf{Baseline thí nghiệm đã xác định:}
+\begin{itemize}
+\item Narrow AI: raw softmax, Temperature Scaling, Isotonic Regression, Beta/Dirichlet-style calibration.
+\item LLM: token probability, verbalized confidence, self-consistency, APRICOT-style calibrator.
+\item VLM: uncalibrated CLIP/LLaVA, DAC, cross-modal confidence decomposition.
+\end{itemize}
+
+\vspace{0.2cm}
+\textbf{Benchmarks:} CIFAR-100, ImageNet-C, MMLU, TruthfulQA, HaluEval, POPE, VQA-v2, SEED-Bench.
+\end{frame}
+
+\begin{frame}{Phase 1 Implementation Assets}
+\textbf{Narrow AI pipeline:}
+\begin{itemize}
+\item Quy trình extract logits từ CNN/ViT trước softmax.
+\item Tối ưu temperature trên validation set bằng NLL.
+\item So sánh calibration trước/sau bằng cùng bộ metrics.
+\end{itemize}
+
+\vspace{0.2cm}
+\textbf{LLM/VLM foundation:}
+\begin{itemize}
+\item Thiết kế embedding pipeline cho câu hỏi bằng Sentence-BERT.
+\item Chuẩn bị clustering semantic groups bằng HDBSCAN cho APRICOT-style calibration.
+\item Xác định cách thu correctness labels, self-consistency score, grounding score.
+\item Chuẩn bị hướng tích hợp cross-attention/visual uncertainty cho VLM.
+\end{itemize}
+\end{frame}
+
+\section{Direction}
+
+\begin{frame}{Định Hướng: Unified Calibration Framework}
+\textbf{Ý tưởng chính:} xây dựng UCF như một framework thống nhất nhưng có module riêng cho từng loại mô hình.
+
+\vspace{0.2cm}
+\begin{itemize}
+\item \textbf{Metrics layer:} chuẩn hóa cách đo calibration trên mọi architecture.
+\item \textbf{Calibration layer:} triển khai post-hoc và training-time methods theo interface chung.
+\item \textbf{Model-specific layer:} Narrow AI dùng logits; LLM dùng generation confidence; VLM dùng cross-modal signals.
+\item \textbf{Monitoring layer:} theo dõi distribution shift, drift, và kích hoạt recalibration khi cần.
+\item \textbf{Deployment layer:} hỗ trợ reject option, conformal prediction, human-in-the-loop cho case rủi ro cao.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Phase 1 Plan: June--July}
+\textbf{Task 1 --- UCF-Metrics:}
+\begin{itemize}
+\item Implement ECE variants, MCE, Brier Score, NLL, visualization utilities.
+\end{itemize}
+
+\textbf{Task 2 --- Narrow AI Baseline:}
+\begin{itemize}
+\item Extract logits, implement Temperature Scaling, compare post-hoc baselines, evaluate OOD robustness.
+\end{itemize}
+
+\textbf{Task 3 --- LLM/VLM Preparation:}
+\begin{itemize}
+\item Build SBERT embedding pipeline, HDBSCAN clustering, correctness aggregation, resource request for Phase 2.
+\end{itemize}
+
+\vspace{0.2cm}
+\textbf{Deliverables cuối Phase 1:} metrics library, baseline notebooks/scripts, reliability plots, LLM/VLM calibration design document.
+\end{frame}
+
+\begin{frame}{Future Developments}
+\textbf{Phase 2-3 Research Extensions:}
+\begin{itemize}
+\item Full APRICOT implementation and LLM calibration at scale
+\item VLM multi-modal calibration on CLIP and LLaVA
+\item Extreme distribution shifts and continual learning scenarios
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{Practical Applications in Industry:}
+\begin{itemize}
+\item Medical diagnosis systems with confidence-aware recommendations
+\item Financial risk assessment with uncertainty quantification
+\item Autonomous systems with calibrated rejection and human-in-the-loop mechanisms
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{Viettel Partnership Goals:}
+Integration with production systems, real-world distribution shift datasets, and deployment best practices documentation.
+\end{frame}
+
+\end{document}
