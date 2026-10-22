@@ -332,8 +332,9 @@ def main():
     parser.add_argument("--english_model", type=str, default="protectai/deberta-v3-base-prompt-injection-v2")
     parser.add_argument("--epochs_romance", type=int, default=4, help="Epochs for Romance Champion on 12,600 samples (default 4)")
     parser.add_argument("--epochs_english", type=int, default=5, help="Epochs for English Champion on 1,400 samples (default 5)")
-    parser.add_argument("--batch_size_romance", type=int, default=32)
-    parser.add_argument("--batch_size_english", type=int, default=16)
+    parser.add_argument("--batch_size", type=int, default=None, help="General batch size for both champions (shortcut)")
+    parser.add_argument("--batch_size_romance", type=int, default=None, help="Batch size for Romance champion (default 32)")
+    parser.add_argument("--batch_size_english", type=int, default=None, help="Batch size for English champion (default 16)")
     parser.add_argument("--lr_romance", type=float, default=3e-5)
     parser.add_argument("--lr_english", type=float, default=2e-5)
     parser.add_argument("--max_length", type=int, default=512)
@@ -342,6 +343,18 @@ def main():
     parser.add_argument("--output_report", type=str, default="src/dual_full_fit_report.txt")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
+
+    # Dynamic batch size resolution
+    if args.batch_size is not None:
+        if args.batch_size_romance is None:
+            args.batch_size_romance = args.batch_size
+        if args.batch_size_english is None:
+            args.batch_size_english = args.batch_size
+    else:
+        if args.batch_size_romance is None:
+            args.batch_size_romance = 32
+        if args.batch_size_english is None:
+            args.batch_size_english = 16
 
     import torch
     from transformers import AutoConfig, AutoModelForSequenceClassification, AutoTokenizer
@@ -644,3 +657,4 @@ Pipeline: Dual Champions Full-Fit (100% Training on 14,000 samples)
 
 if __name__ == "__main__":
     main()
+

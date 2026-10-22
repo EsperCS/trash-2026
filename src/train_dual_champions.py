@@ -336,8 +336,9 @@ def main():
     parser.add_argument("--english_model", type=str, default="protectai/deberta-v3-base-prompt-injection-v2", help="English backbone model (DeBERTa-v3)")
     parser.add_argument("--epochs_romance", type=int, default=4, help="Customizable training epochs for Romance group (pt, fr, it), default 4")
     parser.add_argument("--epochs_english", type=int, default=5, help="Customizable training epochs for English group (en), default 5")
-    parser.add_argument("--batch_size_romance", type=int, default=32, help="Batch size for Romance champion")
-    parser.add_argument("--batch_size_english", type=int, default=16, help="Batch size for English champion")
+    parser.add_argument("--batch_size", type=int, default=None, help="General batch size for both champions (e.g. 16, 32, 64)")
+    parser.add_argument("--batch_size_romance", type=int, default=None, help="Batch size for Romance champion (default 32)")
+    parser.add_argument("--batch_size_english", type=int, default=None, help="Batch size for English champion (default 16)")
     parser.add_argument("--lr_romance", type=float, default=3e-5, help="Learning rate for Romance champion")
     parser.add_argument("--lr_english", type=float, default=2e-5, help="Learning rate for English champion")
     parser.add_argument("--max_length", type=int, default=512, help="Max sequence length")
@@ -350,6 +351,18 @@ def main():
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     args = parser.parse_args()
 
+    # Dynamic batch size resolution
+    if args.batch_size is not None:
+        if args.batch_size_romance is None:
+            args.batch_size_romance = args.batch_size
+        if args.batch_size_english is None:
+            args.batch_size_english = args.batch_size
+    else:
+        if args.batch_size_romance is None:
+            args.batch_size_romance = 32
+        if args.batch_size_english is None:
+            args.batch_size_english = 16
+
     import torch
     from transformers import AutoConfig, AutoModelForSequenceClassification, AutoTokenizer
 
@@ -360,8 +373,9 @@ def main():
 
     logger.info("=" * 85)
     logger.info("⚔️ RMIT HACKATHON 2026: DUAL CHAMPIONS SOTA TRAINING & ROUTING PIPELINE")
-    logger.info(f"   Romance Group (PT, FR, IT): {args.epochs_romance} EPOCHS | Backbone: {args.romance_model}")
-    logger.info(f"   English Group (EN)        : {args.epochs_english} EPOCHS | Backbone: {args.english_model}")
+    logger.info(f"   Romance Group (PT, FR, IT): {args.epochs_romance} EPOCHS | Batch: {args.batch_size_romance} | Backbone: {args.romance_model}")
+    logger.info(f"   English Group (EN)        : {args.epochs_english} EPOCHS | Batch: {args.batch_size_english} | Backbone: {args.english_model}")
+    logger.info(f"   Stratified Folds          : {args.num_folds}")
     logger.info("=" * 85)
 
     # 1. Load Data
