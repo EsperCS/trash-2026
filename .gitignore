@@ -2,7 +2,9 @@
 __pycache__/
 *.pyc
 .env
-data/
+data/*
+!data/rmit-hackathon-2026/
+!data/rmit-hackathon-2026/*.csv
 models/
 submissions/
 *.pkl

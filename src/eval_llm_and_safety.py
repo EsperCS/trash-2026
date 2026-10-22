@@ -545,12 +545,49 @@ def generate_markdown_report(
 
 
 def find_dataset(candidates: List[str]) -> Path:
-    """Find dataset across candidate paths."""
+    """Find dataset across candidate paths, auto-extract zip if found, or search filesystem."""
+    import zipfile
+
+    # 1. Direct candidate checks
     for p in candidates:
+        if not p:
+            continue
         path = Path(p).expanduser().resolve()
         if path.is_file():
             return path
-    raise FileNotFoundError(f"Could not locate train.csv in any of: {candidates}")
+
+    # 2. Check for zip files to extract
+    zip_candidates = [
+        "data/rmit-hackathon-2026.zip",
+        "../data/rmit-hackathon-2026.zip",
+        "/content/rmit-hackathon-2026.zip",
+        "/content/trash-2026/data/rmit-hackathon-2026.zip",
+    ]
+    for z in zip_candidates:
+        zpath = Path(z).expanduser().resolve()
+        if zpath.is_file():
+            extract_dir = zpath.parent / "rmit-hackathon-2026"
+            extract_dir.mkdir(parents=True, exist_ok=True)
+            logger.info(f"Extracting archive {zpath} -> {extract_dir}...")
+            with zipfile.ZipFile(zpath, "r") as zip_ref:
+                zip_ref.extractall(extract_dir)
+            extracted_train = extract_dir / "train.csv"
+            if extracted_train.is_file():
+                return extracted_train
+
+    # 3. Recursive search in current working directory and /content
+    search_roots = [Path.cwd(), Path("/content")]
+    for root in search_roots:
+        if root.exists():
+            for found in root.rglob("train.csv"):
+                if "rmit" in str(found).lower() or found.is_file():
+                    logger.info(f"Discovered train.csv via search: {found}")
+                    return found.resolve()
+
+    raise FileNotFoundError(
+        f"Could not locate train.csv in any candidate locations: {candidates}.\n"
+        "Ensure data/rmit-hackathon-2026/train.csv is present or specify --data_path /path/to/train.csv"
+    )
 
 
 def main() -> None:
